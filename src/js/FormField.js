@@ -22,11 +22,11 @@ class FormField extends React.Component {
 	  const mobileFieldStyle = {
 	       marginLeft: '20%',
 	       marginRight: '5%',
-	       width: '250px',
+	       width: '225px',
 	  };
       
           return (
-	       <Col xs={4} md={10} lg={9}><h2><input type="text" style={(isMobile ? mobileFieldStyle : fieldStyle)} name={this.props.value} required={(this.props.required===true ? "required" : "")} onChange={this.props.onChange} value={this.props.value} /></h2></Col>
+	       <Col xs={4} md={6} lg={9}><h2><input type="text" style={(isMobile ? mobileFieldStyle : fieldStyle)} name={this.props.value} required={(this.props.required===true ? "required" : "")} onChange={this.props.onChange} value={this.props.value || ''} /></h2></Col>
 	  );
      }
 }

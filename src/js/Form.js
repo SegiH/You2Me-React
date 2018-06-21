@@ -1,7 +1,9 @@
 /*
 TO DO
+https://github.com/facebook/create-react-app/blob/master/packages/react-scripts/template/README.md#adding-assets-outside-of-the-module-system
+change handleSubmit() to use statusTaskNames array
+work on restart form functionality
 Feature: look into audio fingerprinting using Acoustid https://acoustid.org/fingerprinter (maybe)
-Feature: fetch data as JSON (maybe)
 */
 
 import React from 'react';
@@ -23,8 +25,6 @@ const statusTaskNames = [
      'Downloading the song',
      'Writing ID3 Tags',
      'Renaming the file',
-     'Moving the file to new location',
-     'Done'
 ];
 
 // Form component 
@@ -32,17 +32,17 @@ class Form extends React.Component {
      constructor(props) {
           super(props);
           
-   	  this.state = {  
-	       currentStatus : 1,
+   	           this.state = {  
+	           currentStatus : 1,
 	       
                // fieldArray format: KEY : { 'field name',required (true or false),'value or default value if initialized in state'  }
-               fieldArray : {'URL' : ['url',true,(getParam("URL") !== "" && typeof getParam("URL") !== 'undefined' ? getParam("URL") : "https://www.youtube.com/watch?v=Wch3gJG2GJ4")],'Artist' : ['artist',true,parseTitle('artist')],'Album': ['album',false,""],'Name' : ['trackname',true,parseTitle('title')],'Track #' : ['tracknum',false,""], 'Genre' : ['genre',true,""], 'Year' : ['year',false,""] },
-               isSubmitted : false, 
-	       mp3File : "",
-	       processStatus : "Fields marked in red are required",
-               plexScanNewFiles : true,
-	       submitButtonDisabled: false,
-	       statusTasks : { [statusTaskNames[1]] : [ initialStatusTaskState,false],[statusTaskNames[2]]  : [initialStatusTaskState,false], [statusTaskNames[3]] : [initialStatusTaskState,false],[statusTaskNames[4]] : [initialStatusTaskState,false], [statusTaskNames[5]] : [initialStatusTaskState,false] },
+               fieldArray : {'URL' : ['url',true,(getParam("URL") !== "" && typeof getParam("URL") !== 'undefined' ? getParam("URL") : "")],'Artist' : ['artist',true,parseTitle('artist')],'Album': ['album',false,""],'Name' : ['trackname',true,parseTitle('title')],'Track #' : ['tracknum',false,""], 'Genre' : ['genre',false,""], 'Year' : ['year',false,""] },
+                   finished: false,
+                   isSubmitted : false, 
+	           mp3File : "",
+	           processStatus : "Fields marked in red are required",
+	           submitButtonDisabled: false,
+	           statusTasks : { [statusTaskNames[1]] : [ initialStatusTaskState,false],[statusTaskNames[2]]  : [initialStatusTaskState,false], [statusTaskNames[3]] : [initialStatusTaskState,false]        },
                statusTasksVisible : false 
           };
 
@@ -58,9 +58,10 @@ class Form extends React.Component {
 
      // Method called when all status have finished   
      finished() {
-          this.updateStatusTask('Done','Success');
+          //this.updateStatusTask('Done','Success');
       
           this.setState({isSubmitted : true});
+          this.setState({finished: true});
      }
 
      // When the text field value changes, store the value in the array
@@ -109,17 +110,19 @@ class Form extends React.Component {
                     this.setState({mp3File : mp3File});
 
                     this.updateStatus("The file has been renamed");
-      
-                    // Update the status and continue on to the next step 
-                    this.setState({ currentStatus : 4}, () => this.submitClick());
+       
+                    this.updateStatusTask('Renaming the file','Success');
+                    
+                    this.finished();
 
                     break;
                case 4:
-                    this.updateStatus("The file has been moved to the new location");
+                    // this.updateStatus("The file has been moved to the new location");
     
-                    this.updateStatusTask('Moving the file to new location','Success');
-                      
-                    this.finished();
+                    // this.updateStatusTask('Moving the file to new location','Success');
+                    
+                    // this.setState({ currentStatus : 5}, () => this.submitClick());
+                     // this.finished();
 
                     break;
                default:
@@ -128,11 +131,11 @@ class Form extends React.Component {
      }
 
      render() {
-	  const buttonStyle = {
-	       marginLeft: '40%',
-	       marginRight: '50%',
-	  };
-
+	      const buttonStyle = {
+	           marginLeft: '40%',
+	           marginRight: '50%',
+          };
+          
           const labelStyle = {
                display: 'inline-block',
                width: '100%',
@@ -145,8 +148,16 @@ class Form extends React.Component {
 
 	  const fields = Object.keys(this.state.fieldArray).map(key => this.renderLabelFieldRow(key));
 	  const statusTasks = Object.keys(this.state.statusTasks).map(key => this.renderStatusTasks(key));
-	 
-	  let submitButtonDisabled=false;
+	  
+          let fileName=this.state.mp3File;
+
+          if (fileName.lastIndexOf("/") !== -1) {
+               fileName=fileName.substring(fileName.lastIndexOf("/")+1);
+          }
+
+          const dlLink = (this.state.finished ? <a href={fileName}>Download</a> : ""); 
+	  
+          let submitButtonDisabled=false;
 
 	  // if (this.state.submitButtonDisabled && this.state.isSubmitted===false) {
 	  if (this.state.submitButtonDisabled && !this.state.isSubmitted) {
@@ -158,16 +169,18 @@ class Form extends React.Component {
 	  return (
                <Panel header="You to Me" bsStyle={"primary"}>
                     {fields} 
-	                 <Row>
-	                      <Col xs={3}></Col>
-		                    <Col xs={6}>
-                                          <Button onClick={this.submitClick} style={buttonStyle} bsStyle="primary" disabled={submitButtonDisabled}>{buttonText}</Button>
-                              </Col>
-		         </Row>
+	                <Row>
+	                     <Col xs={3}></Col>
+		                 <Col xs={6}>
+                              <Button onClick={this.submitClick} style={buttonStyle} bsStyle="primary" disabled={submitButtonDisabled}>{buttonText}</Button>
+                         </Col>
+		            </Row>
+                    
                     <h2>
                          <Label bsStyle={"warning"} style={(isMobile ? mobileLabelStyle : labelStyle)}>{this.state.processStatus}</Label>
                     </h2>
 	                 {this.state.statusTasksVisible ? statusTasks : ""}
+                         {dlLink}
                </Panel>
           );
      }
@@ -201,7 +214,7 @@ class Form extends React.Component {
                fieldArray[key][2]="";
           }
 
-          this.setState({fieldArray : fieldArray});
+          // this.setState({fieldArray : fieldArray});
 
           // reset all status tasks 
           let statusTasks=this.state.statusTasks;
@@ -240,7 +253,7 @@ class Form extends React.Component {
 
                return;
           }
-
+          
           // Validate the required fields
           let result=validateFields(this.state.fieldArray);
          
@@ -274,7 +287,7 @@ class Form extends React.Component {
                this.updateStatusTask(statusTaskNames[this.state.currentStatus-1],'Success');
                this.updateStatusTask(statusTaskNames[this.state.currentStatus],'Info');
           }
-                 
+          
           // Run the AJAX request
           fetch('./php/serverTasks.php' + params, {method: 'GET',}).then(response => response.json()).then((response) => {
 	       this.handleFetchResponse(response);
@@ -287,7 +300,7 @@ class Form extends React.Component {
      updateStatus(newStatus) {
 	  this.setState({processStatus : newStatus});
      }
-    
+     
      // Update the status task 
      updateStatusTask(taskName,value) {
           let currentStatus={ ...this.state.statusTasks};

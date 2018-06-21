@@ -77,7 +77,7 @@ export function validateFields(fieldArray) {
           return ["Error","Please enter the URL"];
      }
 
-     if (fieldArray["URL"][2].indexOf("https://www.youtube.com")===-1) {
+     if (fieldArray["URL"][2].indexOf("youtube.com")===-1 && fieldArray["URL"][2].indexOf("youtu.be")===-1) {
           return ["Error","Only YouTube URLs are allowed"];
      }
 

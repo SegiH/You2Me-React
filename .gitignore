@@ -25,3 +25,4 @@ scripts/
 src/js/*.swp
 src/php/*.swp
 ./.*.swp
+./package.json

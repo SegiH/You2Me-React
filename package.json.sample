@@ -1,14 +1,8 @@
 {
-  "name": "y2m-noserver",
-  "homepage": "https://segi.mooo.com/YouTube2MP3/",
+  "name": "youtube2mp3",
+  "homepage": "",
   "version": "0.1.0",
   "private": true,
-  "proxy": {
-    "/php": {
-      "target": "https://segi.mooo.com/Y2M/",
-      "changeOrigin": true
-    }
-  },
   "dependencies": {
     "@angular/core": "^5.0.5",
     "@material-ui/core": "^3.0.3",
@@ -30,8 +24,6 @@
     "watch-css": "npm run build-css && node-sass-chokidar src/ -o src/ --watch --recursive",
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "deploy-standalone": "cp -R src/php build && cp -R src/python build && cp -R build/* /var/www/html/YouTube2MP3/",
-    "deploy-server": "cp -R src/php build && cp -R src/python build && cp -R build/* /var/www/html/Y2M/",
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject"
   },

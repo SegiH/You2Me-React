@@ -2,8 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 import registerServiceWorker from './registerServiceWorker';
-import './css/FormStyle.css';
-import Form from './js/Form';
+import YouTube2MP3 from './YouTube2MP3';
 
-ReactDOM.render(<Form />, document.getElementById('root'));
+ReactDOM.render(<YouTube2MP3 />, document.getElementById('root'));
 registerServiceWorker();

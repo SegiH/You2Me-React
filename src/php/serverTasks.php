@@ -1,9 +1,12 @@
 <?php
+     // Required binaries: youtube-dl, id3v2, 
      require_once('getid3/getid3.php');
      require_once('getid3/write.php');
   
      // The path where the song will be moved to. Make sure the path has a slash at the end
-     $destinationPath="/var/www/html/media/";
+     $destinationPath="/mnt/usb/";
+     $sourcePath="/var/www/html/media/";
+     $domain="https://segi.mooo.com/media/";
 
      //$os=php_uname("s");
      $os=(strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' ? "Windows" : "Unix");
@@ -22,11 +25,11 @@
 	            $cmd="youtube-dl " .  htmlspecialchars($_GET["URL"]) . " -x --audio-format mp3 --audio-quality 320 | find \"Destination:\" | find \"mp3\" 2>&1";
 
 	       exec($cmd,$retArr,$retVal);
-        
+
                // If its set to something, set it back
-               /*if ($currLDLibraryPath != false) {
-                    putenv("LD_LIBRARY_PATH",$currLDLibraryPath);
-               }*/
+               //if ($currLDLibraryPath != false) {
+               //     putenv("LD_LIBRARY_PATH",$currLDLibraryPath);
+               //}
 
                // Parse the output for the file name 
 	       foreach ($retArr as $key => $value) {
@@ -49,8 +52,49 @@
 	       if (!chmod($mp3File,0777)) {
 		    echo "Failed to set file mode";
 	       }
+ 
+               /*
+               $cmd2="../python/aidmatch.py " . $mp3File . " 2>&1";
 
-               echo json_encode(array($mp3File));
+	       exec($cmd2,$retArr2,$retVal2);
+
+               $tagged=false;
+
+	       # Since we only care about the first result, we only save the first key value pair
+	       foreach ($retArr2 as $key => $value) {
+		    if ($value=="fingerprint could not be calculated")
+                         break;
+          
+                    $tagged=true;
+ 
+                    $tags=$value;
+
+	            $tags=explode(',',$tags);
+
+	            $artist=str_replace('"','',$tags[0]);
+
+	            $title=str_replace('"','',$tags[1]);
+
+    	            # write the tags
+	            $cmd3="id3v2 -t \"" . $title . "\" -a \"" . $artist . "\" " . $mp3File;
+	       
+	            exec($cmd3,$retArr3,$retVal3);
+
+	            # if retval is 0 then command was successful
+	            if ($retVal3 == 0) {
+	                 echo json_encode(array($mp3File,$artist,$title));
+	            }
+		    break;   
+               }
+
+
+	       # if tagged is false, nothing was written above
+	       if ($tagged == false)
+	            echo json_encode(array($mp3File,"",""));
+	       */
+
+	       echo json_encode(array($mp3File));
+
                return;
           case 2: // Write the ID3 Tags
                $tagData = array(
@@ -108,10 +152,17 @@
                $newFileName=htmlspecialchars($tracknum != "" ? $tracknum . " " : "") . htmlspecialchars($_GET["TrackName"]) . ".mp3";
 
                // Rename the file
-               if (rename(htmlspecialchars($_GET["Filename"]),$destinationPath . $newFileName) == false) {
-                    echo json_encode(array("Unable to rename the file " . htmlspecialchars($_GET["Filename"]) . " to " . $destinationPath . $newFileName));
-               } else {
-                    echo json_encode(array("http://segi.mooo.com/media/" . basename($newFileName)));
+               if (rename(htmlspecialchars($_GET["Filename"]),$sourcePath . $newFileName) == false) {
+                    echo json_encode(array("Unable to rename the file " . htmlspecialchars($_GET["Filename"]) . " to " . $sourcePath . $newFileName));
+	       } else {
+		    $steps=$_GET["StepCount"];
+                    
+		    // If this is the last step include the domain 
+		    if ($steps==4) {
+		         echo json_encode(array($domain . basename($newFileName)));
+		    } else {
+		         echo json_encode(array(basename($newFileName)));
+		    }
                }
              
                return;
@@ -153,15 +204,17 @@
                if ($pathBuildSucceeded) {
                     $destinationPath=$destinationPath . $artist . ($os=="Windows" ? "\\" : "/") . $album . ($os=="Windows" ? "\\" : "/");
                }
+               
+	       $fileName=htmlspecialchars($_GET["Filename"]);
 
-               /* $res=rename(htmlspecialchars($_GET["Filename"]),$destinationPath . htmlspecialchars($_GET["Filename"]));
+               $res=rename($sourcePath . $fileName,$destinationPath . $fileName);
                
                if ($res==true) {
                     echo json_encode(array("The file has been moved to the new location"));
                } else {
                     echo json_encode(array("ERROR: An error occurred while copying the file to the new location"));
-	       }*/
+	       }
 
-               echo json_encode(array("The file has been moved to the new location"));
+               return;
 }
 ?>

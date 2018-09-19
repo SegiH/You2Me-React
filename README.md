@@ -43,10 +43,9 @@ Troubleshooting:
 If you get an error downloading the track from YouTube, there are a few things that you can do to figure out what is causing the problem.
 
 1. Make sure that the php directory has 777 permissions.
-2. Make sure that youtube-dl is up to date. You can run this any time that you want to update youtube-dl
-   a. sudo wget https://yt-dl.org/downloads/latest/youtube-dl -O /usr/local/bin/youtube-dl
-   b. sudo chmod a+rx /usr/local/bin/youtube-dl
-3. Run youtube-dl YOUTUBEURL -x --audio-format mp3 --audio-quality 320 where YOUTUBEURL is an actual YouTube link and make sure that the command completes.
-4. If you get the error "ERROR: WARNING: unable to obtain file audio codec with ffprobe" when running the step above, make sure that ffprobe is working correctly by running ffprobe -version. If you are using Plex and get a library error, this is caused by the envirnment variable LD_LIBRARY_PATH=/usr/lib/plexmediaserver. You can verify this by running the export command. If you see this path, remove it by editing /etc/environment and add # in front of this line.
+2. Make sure that youtube-dl is up to date. You can run the command sudo wget https://yt-dl.org/downloads/latest/youtube-dl -O /usr/local/bin/youtube-dl any time that you want to update youtube-dl. 
+3. Make sure that youtube-dl has the right permissions by running sudo chmod a+rx /usr/local/bin/youtube-dl
+4. Run youtube-dl YOUTUBEURL -x --audio-format mp3 --audio-quality 320 where YOUTUBEURL is an actual YouTube link and make sure that the command completes and generates an mp3.
+5. If you get the error "ERROR: WARNING: unable to obtain file audio codec with ffprobe" when running the step above, make sure that ffprobe is working correctly by running ffprobe -version. If you are using Plex and get a library error, this is caused by the envirnment variable LD_LIBRARY_PATH=/usr/lib/plexmediaserver. You can verify this by running the export command. If you see this path, remove it by editing /etc/environment and add # in front of this line.
 
 Please contact me if you have any questons, run into any problems or would like to suggest new features. 

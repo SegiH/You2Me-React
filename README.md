@@ -1,3 +1,8 @@
+IMPORTANT NOTE: I have rewritten YouTube2MP3 in Angular and will not be maintaining this version of YouTube2MP3 in React anymore. Please see the report YouTube2MP3-Angular for the newest app. 
+
+
+
+
 YouTube2MP3 is a React based application that is a YouTube downloader which will download the audio from a YouTube URL as an mp3, write the ID3 tags and will either present a download button or move the file to a location that you specify.
 
 Pre-requisites to run YouTube2MP3:

@@ -1,4 +1,4 @@
-IMPORTANT NOTE: I have rewritten YouTube2MP3 in Angular and will not be maintaining this version of YouTube2MP3 in React anymore. Please see the report YouTube2MP3-Angular for the newest app. 
+IMPORTANT NOTE: I have rewritten YouTube2MP3 in Angular and will not be maintaining this version of YouTube2MP3 which was written in React anymore. Please see my repo YouTube2MP3-Angular for the latest version of this app. 
 
 
 

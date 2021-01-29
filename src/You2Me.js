@@ -4,6 +4,8 @@ TO DO
 https://github.com/facebook/create-react-app/blob/master/packages/react-scripts/template/README.md#adding-assets-outside-of-the-module-system
 
 Feature: look into audio fingerprinting using Acoustid https://acoustid.org/fingerprinter (maybe)
+
+React Service: https://medium.com/the-guild/injectable-services-in-react-de0136b6d476
 */
 
 import React from 'react';
@@ -11,11 +13,11 @@ import React from 'react';
 import AppBar from '@material-ui/core/AppBar';
 import Button from '@material-ui/core/Button';
 import Grid from "@material-ui/core/Grid";
-import Paper from '@material-ui/core/Paper';
+import Card from '@material-ui/core/Card';
 import Step from '@material-ui/core/Step';
 import StepLabel from '@material-ui/core/StepLabel';
 import Stepper from '@material-ui/core/Stepper';
-import { TextField } from '@material-ui/core';
+import { InputLabel, MenuItem, Select, TextField } from '@material-ui/core';
 import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography';
 import SnackbarContent from '@material-ui/core/SnackbarContent';
@@ -34,15 +36,78 @@ const stepperStepNames = [
 ];
 
 // Form component 
-class YouTube2MP3 extends React.Component {
+class You2Me extends React.Component {
      constructor(props) {
           super(props);
           
           this.state = {  
+               currentFormat: "",
                currentStep : 1,
                downloadLinkVisible: false,
+
+               fields  : {
+                    'URL':  { 
+                         'Required':true,
+                         'Value': "",
+                         'Disabled': false
+                    },
+                    'Artist': {
+                         'Required':true,
+                         'Value': "",
+                         'Disabled': false
+                    },
+                    'Album': {
+                         'Required':false,
+                         'Value': "",
+                         'Disabled': false
+                    },
+                    'Name': {
+                         'Required':true,
+                         'Value': "",
+                         'Disabled': false
+                    },
+                    'TrackNum': {
+                         'Required':false,
+                         'Value': "",
+                         'Disabled': false
+                    },
+                    'Genre': {
+                         'Required':false,
+                         'Value': "",
+                         'Disabled': false
+                    },
+                    'Year': {
+                         'Required':false,
+                         'Value': "",
+                         'Disabled': false
+                    }
+               },
+
+               formats : [
+                    {"FormatID":"1","0":"1","FormatDisplayName":"aac","1":"aac","FormatName":"aac","2":"aac","FormatTypeID":"1","3":"1","IsMP3Format":"0","4":"0","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"2","0":"2","FormatDisplayName":"flac","1":"flac","FormatName":"flac","2":"flac","FormatTypeID":"1","3":"1","IsMP3Format":"0","4":"0","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"3","0":"3","FormatDisplayName":"m4a","1":"m4a","FormatName":"m4a","2":"m4a","FormatTypeID":"1","3":"1","IsMP3Format":"0","4":"0","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"4","0":"4","FormatDisplayName":"mp3 128k","1":"mp3 128k","FormatName":"128k","2":"128k","FormatTypeID":"1","3":"1","IsMP3Format":"1","4":"1","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"5","0":"5","FormatDisplayName":"mp3 192k","1":"mp3 192k","FormatName":"192k","2":"192k","FormatTypeID":"1","3":"1","IsMP3Format":"1","4":"1","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"6","0":"6","FormatDisplayName":"mp3 256k","1":"mp3 256k","FormatName":"256k","2":"256k","FormatTypeID":"1","3":"1","IsMP3Format":"1","4":"1","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"7","0":"7","FormatDisplayName":"mp3 320k","1":"mp3 320k","FormatName":"320k","2":"320k","FormatTypeID":"1","3":"1","IsMP3Format":"1","4":"1","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"8","0":"8","FormatDisplayName":"mp3 VBR 0 (Best)","1":"mp3 VBR 0 (Best)","FormatName":"0","2":"0","FormatTypeID":"1","3":"1","IsMP3Format":"1","4":"1","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"9","0":"9","FormatDisplayName":"mp3 VBR (5) (OK)","1":"mp3 VBR (5) (OK)","FormatName":"5","2":"5","FormatTypeID":"1","3":"1","IsMP3Format":"1","4":"1","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"10","0":"10","FormatDisplayName":"mp3 VBR (9) (Worst)","1":"mp3 VBR (9) (Worst)","FormatName":"9","2":"9","FormatTypeID":"1","3":"1","IsMP3Format":"1","4":"1","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"11","0":"11","FormatDisplayName":"opus","1":"opus","FormatName":"opus","2":"opus","FormatTypeID":"1","3":"1","IsMP3Format":"0","4":"0","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"12","0":"12","FormatDisplayName":"vorbis","1":"vorbis","FormatName":"vorbis","2":"vorbis","FormatTypeID":"1","3":"1","IsMP3Format":"0","4":"0","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"13","0":"13","FormatDisplayName":"wav","1":"wav","FormatName":"wav","2":"wav","FormatTypeID":"1","3":"1","IsMP3Format":"0","4":"0","FormatTypeName":"Audio","5":"Audio"},
+                    {"FormatID":"14","0":"14","FormatDisplayName":"No conversion","1":"No conversion","FormatName":"original","2":"original","FormatTypeID":"2","3":"2","IsMP3Format":"0","4":"0","FormatTypeName":"Video","5":"Video"},
+                    {"FormatID":"15","0":"15","FormatDisplayName":"Convert to avi","1":"Convert to avi","FormatName":"avi","2":"avi","FormatTypeID":"2","3":"2","IsMP3Format":"0","4":"0","FormatTypeName":"Video","5":"Video"},
+                    {"FormatID":"16","0":"16","FormatDisplayName":"Convert to flv","1":"Convert to flv","FormatName":"flv","2":"flv","FormatTypeID":"2","3":"2","IsMP3Format":"0","4":"0","FormatTypeName":"Video","5":"Video"},
+                    {"FormatID":"17","0":"17","FormatDisplayName":"Convert to mkv","1":"Convert to mkv","FormatName":"mkv","2":"mkv","FormatTypeID":"2","3":"2","IsMP3Format":"0","4":"0","FormatTypeName":"Video","5":"Video"},
+                    {"FormatID":"18","0":"18","FormatDisplayName":"Convert to mp4","1":"Convert to mp4","FormatName":"mp4","2":"mp4","FormatTypeID":"2","3":"2","IsMP3Format":"0","4":"0","FormatTypeName":"Video","5":"Video"},
+                    {"FormatID":"19","0":"19","FormatDisplayName":"Convert to ogg","1":"Convert to ogg","FormatName":"ogg","2":"ogg","FormatTypeID":"2","3":"2","IsMP3Format":"0","4":"0","FormatTypeName":"Video","5":"Video"},
+                    {"FormatID":"20","0":"20","FormatDisplayName":"Convert to webm","1":"Convert to webm","FormatName":"webm","2":"webm","FormatTypeID":"2","3":"2","IsMP3Format":"0","4":"0","FormatTypeName":"Video","5":"Video"}],
+
+
                // fieldArray format: KEY : { 'field name',required (true or false),'value or default value if initialized in state'  }
-               fieldArray : {'URL' : ['url',true,(this.getParam("URL") !== "" && typeof this.getParam("URL") !== 'undefined' ? this.getParam("URL") : "")],'Artist' : ['artist',true,this.parseTitle('artist')],'Album': ['album',false,""],'Name' : ['trackname',true,this.parseTitle('title')],'Track #' : ['tracknum',false,""], 'Genre' : ['genre',false,""], 'Year' : ['year',false,""] },
+               //fieldArray : {'URL' : ['url',true,(this.getParam("URL") !== "" && typeof this.getParam("URL") !== 'undefined' ? this.getParam("URL") : "")],'Artist' : ['artist',true,this.parseTitle('artist')],'Album': ['album',false,""],'Name' : ['trackname',true,this.parseTitle('title')],'Track #' : ['tracknum',false,""], 'Genre' : ['genre',false,""], 'Year' : ['year',false,""] },
                isFinished: false,
                isSubmitted : false, 
                mp3File : "",
@@ -98,6 +163,26 @@ class YouTube2MP3 extends React.Component {
           window.location.href=fileName;
      }
 
+     fieldIsHidden(key) {
+          // Specified values are the fields to hide
+          const videoHideFields = Object.freeze(['Artist', 'Album', 'TrackNum', 'Genre', 'Year']);
+          const nonMP3HideFields = Object.freeze(['TrackNum', 'Genre', 'Year']);
+        
+          const thisField = this.getField(key);
+
+          return (
+               // If the fields property is set to disabled this is the de-facto determiner whether this field is enabled or disabled
+               thisField !== null && thisField.Disabled)
+               || (
+                    // If the format is a video format, hide these fields
+                    (!this.isAudioFormat() && videoHideFields.includes(key))
+                    ||
+                    // If the format is an audio format but is not MP3, hide these fields
+                    (this.isAudioFormat() && (!this.isMP3Format() && nonMP3HideFields.includes(key))
+               )
+          );
+     }
+
      // Method called when all status have finished   
      finished() {      
           this.setState({isSubmitted : true});
@@ -110,6 +195,13 @@ class YouTube2MP3 extends React.Component {
           let fld=this.state.fieldArray;
           fld[name][2]=event.target.value;
           this.setState({fieldArray : fld });
+     }
+
+     getField(fieldName) {
+          if (typeof this.state.fields[fieldName] === 'undefined')
+               return null;
+          else
+               return this.state.fields[fieldName];
      }
 
      // Get URL parameter
@@ -210,6 +302,29 @@ class YouTube2MP3 extends React.Component {
                     alert("Unknown AJAX status");
           } 
      }
+
+     isAudioFormat() {
+          let isAudio = false;
+
+          Object.keys(this.state.formats).forEach(key => {
+               if (key === this.state.currentFormat && this.props.formats[key].FormatTypeName === 'Audio')
+                    isAudio = true;              
+          });
+
+          return isAudio;
+     }
+
+     // Is currently selected format an mp3 format
+     isMP3Format() {
+          let isMP3 = false;
+
+          Object.keys(this.state.formats).forEach(key => {
+               if (key === this.state.currentFormat && this.props.formats[key].FormatTypeName === 'Audio' && this.props.formats[key].IsMP3Format)
+                    isMP3=true; 
+          });
+
+          return isMP3;
+     }
   
      // Parse title from URL
      parseTitle(section) {
@@ -249,10 +364,12 @@ class YouTube2MP3 extends React.Component {
                width: '100%',
           };
            
-          const paperStyle = {
-               width: '400px',
-               borderStyle: 'thin',
-               borderWidth: '1px'
+          const cardStyle = {
+               borderStyle: 'solid',
+               borderWidth: '1px',
+               marginLeft: '15px',
+               marginTop: '15px',
+               maxWidth: '550px',
           };
           
           const snackbarStyle= {
@@ -267,27 +384,36 @@ class YouTube2MP3 extends React.Component {
           };
 
           const submitButtonStyle = {
-               
+               marginLeft: 'auto',
+               marginRight: 'auto',
           };
           
           const buttonText=(!this.state.isSubmitted ? "Start" : "Restart");
           const dlLink = (this.state.downloadLinkVisible && stepperStepNames.length === 4 ? <Button color="secondary" onClick={this.downloadLinkClick} style={downloadButtonStyle} variant="contained">Download</Button> : <div />);  
-          const fields = Object.keys(this.state.fieldArray).map(key => this.renderTextFields(key));
+          const fields = Object.keys(this.state.fields).map(key => this.renderTextFields(key));
           const stepperSteps = Object.keys(stepperStepNames).map(key => this.renderSteps(key));
+          const optionItems=Object.keys(this.state.formats).map(key => this.renderFormatOptions(key));
     
           return (
                <div>
-                    <Paper style={paperStyle} elevation={3}>
+                    <Card style={cardStyle} elevation={3}>
 	                       <AppBar position="static">
 		                          <Toolbar>
 		                               <Typography variant="title" color="inherit">
-			                                  YouTube to MP3
+			                                  You2Me
 		                               </Typography>
 		                          </Toolbar>
 	                       </AppBar>
 
 	                       <Grid container direction="column">
 		                          {fields}
+	                       </Grid>
+
+                            <Grid container direction="column">
+                            <InputLabel id="demo-controlled-open-select-label">Format</InputLabel>
+                                 <Select placeholder="Format" value="this.state.currentDormat">
+		                            {optionItems}
+                                 </Select>
 	                       </Grid>
 
 	                       <h2>
@@ -310,13 +436,19 @@ class YouTube2MP3 extends React.Component {
 	                                 {stepperSteps}
 	                            </Stepper>                               
                          )}
-                    </Paper>
+                    </Card>
     
                     {(this.state.snackBarVisible === true &&
 	                       <SnackbarContent message={this.state.snackBarMessage} style={(isMobile ? snackbarStyleMobile : snackbarStyle)} />
                     )}                    
                </div>
           );
+     }
+
+     renderFormatOptions(i) {
+          return (
+               <MenuItem key={i} value={this.state.formats[i].FormatName}>{this.state.formats[i].FormatDisplayName}</MenuItem>
+          )
      }
 
      // Render the steps 
@@ -326,7 +458,7 @@ class YouTube2MP3 extends React.Component {
                     <StepLabel>{stepperStepNames[i]}</StepLabel>
                </Step>
           );
-     }
+     }     
 
      // Render the row with the Label and Field
      renderTextFields(i) {
@@ -334,9 +466,10 @@ class YouTube2MP3 extends React.Component {
                marginTop: '25px',
           }
 
-          return (
-               <TextField key={i} placeholder={i} label={i} onChange={this.formFieldChange(i)} required={this.state.fieldArray[i][1]} style={txtFieldStyle} value={(this.state.fieldArray[i][2] != null ? this.state.fieldArray[i][2] : "")} />
-          );
+          if (!this.fieldIsHidden(i))
+               return (
+                    <TextField key={i} placeholder={i} label={i} onChange={this.formFieldChange(i)} required={this.state.fields[i].Required} style={txtFieldStyle} value={(this.state.fields[i].Value)} />
+               )
      }
 
      // Reset the form
@@ -463,4 +596,4 @@ class YouTube2MP3 extends React.Component {
      }
 }
 
-export default YouTube2MP3;
+export default You2Me

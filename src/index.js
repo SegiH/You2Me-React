@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 import registerServiceWorker from './registerServiceWorker';
-import YouTube2MP3 from './YouTube2MP3';
+import You2Me from './You2Me';
 
-ReactDOM.render(<YouTube2MP3 />, document.getElementById('root'));
+ReactDOM.render(<You2Me />, document.getElementById('root'));
 registerServiceWorker();

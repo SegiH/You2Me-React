@@ -1,11 +1,8 @@
 /*
 TO DO
-               ? <Button color="primary" onClick={this.submitClick} style={submitButtonStyle} variant="contained">{buttonText}</Button>
-https://github.com/facebook/create-react-app/blob/master/packages/react-scripts/template/README.md#adding-assets-outside-of-the-module-system
+    https://github.com/facebook/create-react-app/blob/master/packages/react-scripts/template/README.md#adding-assets-outside-of-the-module-system
 
-Feature: look into audio fingerprinting using Acoustid https://acoustid.org/fingerprinter (maybe)
-
-React Service: https://medium.com/the-guild/injectable-services-in-react-de0136b6d476
+    React Service: https://medium.com/the-guild/injectable-services-in-react-de0136b6d476
 */
 
 import React from 'react';
@@ -41,10 +38,16 @@ class You2Me extends React.Component {
           super(props);
           
           this.state = {  
-               currentFormat: "",
+               allowMoveToServer : false,
+               currentFormat : "",
                currentStep : 1,
-               downloadLinkVisible: false,
-
+               debugging : false,
+               debuggingCheckboxVisible : false,
+               downloadLink : "",
+               downloadButtonVisible : false, // default false
+               downloadStatus : "", // displays youtube-dl output messages
+               downloadStatusVisible : true,
+               //downloadProgressSubscription,
                fields  : {
                     'URL':  { 
                          'Required':true,
@@ -82,7 +85,7 @@ class You2Me extends React.Component {
                          'Disabled': false
                     }
                },
-
+               fileName : '',
                formats : [
                     {"FormatID":"1","0":"1","FormatDisplayName":"aac","1":"aac","FormatName":"aac","2":"aac","FormatTypeID":"1","3":"1","IsMP3Format":"0","4":"0","FormatTypeName":"Audio","5":"Audio"},
                     {"FormatID":"2","0":"2","FormatDisplayName":"flac","1":"flac","FormatName":"flac","2":"flac","FormatTypeID":"1","3":"1","IsMP3Format":"0","4":"0","FormatTypeName":"Audio","5":"Audio"},
@@ -104,24 +107,26 @@ class You2Me extends React.Component {
                     {"FormatID":"18","0":"18","FormatDisplayName":"Convert to mp4","1":"Convert to mp4","FormatName":"mp4","2":"mp4","FormatTypeID":"2","3":"2","IsMP3Format":"0","4":"0","FormatTypeName":"Video","5":"Video"},
                     {"FormatID":"19","0":"19","FormatDisplayName":"Convert to ogg","1":"Convert to ogg","FormatName":"ogg","2":"ogg","FormatTypeID":"2","3":"2","IsMP3Format":"0","4":"0","FormatTypeName":"Video","5":"Video"},
                     {"FormatID":"20","0":"20","FormatDisplayName":"Convert to webm","1":"Convert to webm","FormatName":"webm","2":"webm","FormatTypeID":"2","3":"2","IsMP3Format":"0","4":"0","FormatTypeName":"Video","5":"Video"}],
-
-
-               // fieldArray format: KEY : { 'field name',required (true or false),'value or default value if initialized in state'  }
-               //fieldArray : {'URL' : ['url',true,(this.getParam("URL") !== "" && typeof this.getParam("URL") !== 'undefined' ? this.getParam("URL") : "")],'Artist' : ['artist',true,this.parseTitle('artist')],'Album': ['album',false,""],'Name' : ['trackname',true,this.parseTitle('title')],'Track #' : ['tracknum',false,""], 'Genre' : ['genre',false,""], 'Year' : ['year',false,""] },
-               isFinished: false,
+               formatOverride : false,
+               isFinished : false,
                isSubmitted : false, 
-               mp3File : "",
-               snackBarVisible: false,
-               snackBarMessage: "",
+               moveToServer : false,
+               moveToServerButtonVisible : false, // default false
+               saveValues : false,    
+               statusCountClick : 0,
+               //snackBarVisible : false,
+               statusMessage : "",
+               statusCountClick : 0,
                statusMessage : "Fields marked with an * are required",
+               urlParams: {},
+               validURLParameters : ['URL','Artist','Album','Format','Genre','Name','TrackNum','MoveToServer','Year','Debugging']
           };
 
           // Bind custom methods to this
-          this.downloadLinkClick = this.downloadLinkClick.bind(this);
+          this.downloadLinkClicked = this.downloadLinkClicked.bind(this);
           this.finished = this.finished.bind(this);
+          this.formatChange = this.formatChange.bind(this);
           this.formFieldChange = this.formFieldChange.bind(this);
-          this.handleFetchResponse = this.handleFetchResponse.bind(this);
-          this.resetForm = this.resetForm.bind(this);
           this.showSnackBarMessage=this.showSnackBarMessage.bind(this);
           this.submitClick = this.submitClick.bind(this);
           this.updateStatus = this.updateStatus.bind(this);
@@ -130,37 +135,294 @@ class You2Me extends React.Component {
           //this.state.fieldArray["URL"][2]="https://www.youtube.com/watch?v=Wch3gJG2GJ4";
           //this.state.fieldArray["Artist"][2]="a";
           //this.state.fieldArray["Name"][2]="a";
+     
+          //this.parseURLParameters();
 
-         if (moveToServer === true)
-              stepperStepNames.push('Moving the file to new location'); 
-     }
- 
-     // Build URL parameters
-     buildParameters() {
-          switch(this.state.currentStep) {
-               case 1:
-                    return '?step=1&URL=' + this.state.fieldArray["URL"][2];
-               case 2:
-                    return '?step=2&Filename=' + this.state.mp3File + '&Artist=' + this.state.fieldArray["Artist"][2] + '&Album=' + this.state.fieldArray["Album"][2] + '&TrackName=' + this.state.fieldArray["Name"][2] + '&TrackNum=' + this.state.fieldArray["Track #"][2] + '&Genre=' + this.state.fieldArray["Genre"][2]  + '&Year=' + this.state.fieldArray["Year"][2];
-               case 3:
-                    // Step count is included because if the file is downloaded, theres only steps 0-3. If the file is moved to a server, there's one extra step so the server side action is different for each situation
-                    return '?step=3&Filename=' + this.state.mp3File + '&Artist=' + this.state.fieldArray["Artist"][2] + '&Album=' + this.state.fieldArray["Album"][2] + '&TrackName=' + this.state.fieldArray["Name"][2] + '&TrackNum=' + this.state.fieldArray["Track #"][2] + '&Genre=' + this.state.fieldArray["Genre"][2]  + '&Year=' + this.state.fieldArray["Year"][2] + '&StepCount=' +  stepperStepNames.length;
-               case 4:
-                    return '?step=4&Filename=' + encodeURI(this.state.mp3File) + '&Artist=' + this.state.fieldArray["Artist"][2] + '&Album=' + this.state.fieldArray["Album"][2];
-               default:
-                    return null;
+          const query = window.location.search.substr(1);
+
+          if (query === '')
+               return;
+
+          const res = query.split('&');
+
+          // Create object which contains split key value pairs so "URL=https://www.youtube.com/watch?v=Wch3gJG2GJ4" turns into ['URL','https://www.youtube.com/watch?v=Wch3gJG2GJ4']
+          const map1 = res.map(x => x.split('='));
+          
+          this.state.urlParams = {};
+
+          // Add key/pair to object so it can be accessed by doing params[keyname] to get the value
+          //map1.map(x => params[x[0]] = x[1] + (x[2] !== null ? '=' + x[2] : ''));
+
+          map1.map(x => 
+               this.state.urlParams[decodeURI(x[0]).toUpperCase()] = decodeURI(x[1]) + (
+                     typeof x[2] !== 'undefined' ? '=' + decodeURI(x[2]) : '')
+          );
+
+          const format = this.getURLParam('Format');
+
+          // Set the current format without validating it first because formats object may not be populated yet
+          if (format !== null)
+               this.state.currentFormat = format;
+          else
+               this.showSnackBarMessage(`The format provided is not valid`);
+               
+          // If URL parameter MoveToServer was provided and is allowed, add Moving the file to new location as a step
+          if (this.getURLParam('MoveToServer') === 'true' && this.state.allowMoveToServer) {
+               this.moveToServer = true;
+               document.title = 'You2Me (Server)';
+          } else {
+               this.moveToServer = false;
+               document.title = 'You2Me';
           }
+               
+          if (moveToServer === true)
+              stepperStepNames.push('Moving the file to new location');
+          
+          // Save current debugging value
+          const currDebugging=this.state.debugging;
+
+          // Enable debugging if Debugging was provided as URL parameter. Otherwise default to currDebugging
+          const newDebugging = (this.getURLParam("Debugging") != this.state.debugging && this.getURLParam("Debugging") ? this.getURLParam("Debugging") : currDebugging);
+
+          this.debugging = newDebugging;
+
+          // Debugging default field values
+          if (this.debugging) {
+               let fields=this.state.fields;
+
+               fields.URL.Value = "https://www.youtube.com/watch?v=Wch3gJG2GJ4";
+               fields.Artist.Value = "Monkeeys";
+               fields.Album.Value = "Greatest Hits";
+               fields.Name.Value = "Goin Down";
+               fields.TrackNum.Value = "13";
+               fields.Genre.Value = "60s";
+               fields.Year.Value = "1994";
+
+               this.fields = fields;
+               this.currentFormat = "aac";
+               this.saveValues = true;
+          }
+
+          // Remove Artist name from title if it exists. You can't do this in getURLParam because it ends up getting called recursively
+          const artist = this.state.fields.Artist.Value;
+
+          if (artist !== null) {
+               // Remove "artistname - " from name
+               const newName = this.state.fields.Name.Value.replace(artist + " - ","");
+               this.state.fields.Name.Value = newName;
+          }
+
+          // Load URL parameters
+          Object.keys(this.state.fields).forEach(key => {
+               if (this.getURLParam(key) !== null)
+                    if ((key === 'TrackNum' || key === 'Year') && isNaN(parseInt(this.getURLParam(key))))
+                         this.showSnackBarMessage('The URL parameter ' + key + ' has to be a number');
+                    else
+                         this.state.fields[key].Value=this.getURLParam(key);
+          });
+
+          // Make sure that there aren't any invalid URL parameters
+          const queryString = "&" + window.location.search.slice(1); // first URL parameter always begins with a ?. This replaces it with & so we can call split() on it using & as the delimiter
+          const split_params=queryString.split("&"); 
+          
+          for (let i=0;i<split_params.length;i++) {
+               if (split_params[i] !== '') {
+                    const param=split_params[i].split("=")[0]; // URL is in the form Name=Value; Get Name part of the parameter
+
+                    if (!this.state.validURLParameters.includes(param))
+                         this.showSnackBarMessage('The URL parameter ' + param + ' is not a valid URL parameter');                    
+               }
+          }
+     }
+
+     clearFieldValues() {
+          const fields=this.state.fields;
+
+          this.state.fieldKeys.forEach(key => {
+               fields[key].Value = "";
+          });
+
+          this.setState({fields: fields});
+     }
+
+     // Download file step
+     downloadFile() {
+          // Start timer that gets download progress
+          if (!this.debugging)
+               this.getDownloadProgress();
+
+          // Call data service to download the file
+          /* FIX ME LATER! */
+          /*this.dataService.fetchFile(this.moveToServer, this.allowMoveToServer, this.debugging)
+          .subscribe((response) => {
+               // Stop the REST service that gets the download status
+               if (!this.debugging) {
+                    this.downloadProgressSubscription.unsubscribe();
+
+                    this.downloadStatusVisible = false;
+
+                    // Call REST service to delete download progress temp db
+                    this.dataService.deleteDownloadProgress().subscribe((response) => {
+                    },
+                    error => {
+                         this.handleError(Response, error);
+                    });
+               }
+
+               // Trap server side errors
+               if (response[0].includes('Error:')) {
+                    this.handleError(response, response);
+                    console.log(response[1]);
+                    return;
+               }
+
+               // First index will be filename
+               this.fileName = response[0];
+
+               // Second index will be Artist if matched through Python script that does audio fingerprinting
+               if (typeof response[1] !== 'undefined')
+                    this.dataService.setFieldProperty('Artist','Value',response[1]);
+
+               // Third index will be Title if matched through Python script that does audio fingerprinting
+               if (typeof response[2] !== 'undefined')
+                    this.dataService.setFieldProperty('Name','Value',response[2]);
+
+               // If the selected format is MP3 format and the Python script tried but fails to get the artist and album
+               // Make artist and name fields required
+               if (this.dataService.isMP3Format()) {
+                    if (this.dataService.getFieldProperty('Artist','Value') === "") {
+                         this.dataService.setFieldProperty('Artist','Required',true);
+                         this.dataService.showSnackBarMessage('Please enter the artist');
+                         this.currentStep = 1;
+                         this.formatOverride = true;
+                         this.isSubmitted = false;
+
+                         if (this.dataService.getFieldProperty('Name','Value') !== "")
+                              return;
+                    }
+
+                    if (this.dataService.getFieldProperty('Name','Value') === "") {
+                         this.dataService.setFieldProperty('Name','Required',true);
+                         this.dataService.showSnackBarMessage('Please enter the name');
+                         this.currentStep = 1;
+                         this.formatOverride = true;
+                         this.isSubmitted = false;
+                         return;
+                    }
+
+                    this.updateStatus('The file has been downloaded. Writing the ID3 tags');
+
+                    this.currentStep++;
+
+                    this.processSteps();
+               } else if (!this.dataService.isMP3Format() && !this.moveToServer) { // If the format is not MP3 and we aren't moving to the server we are done
+                    // The response returns the URL for the downloaded file
+                    this.downloadLink = decodeURIComponent(response[0].replace(/\+/g, ' '));
+
+                    this.updateStatus('The file is ready for you to download or move to your server');
+
+                    this.finished();
+
+                    return;
+               }
+          },
+          error => {
+               // Stop the REST service that gets the download status
+               if (!this.debugging) {
+                    this.downloadProgressSubscription.unsubscribe();
+
+                    // Call REST service to delete download progress temp db
+                    this.dataService.deleteDownloadProgress().subscribe((response) => {
+                    },
+                    error => {
+                         this.handleError(Response, error);
+                    });
+               }
+          
+               this.handleError(Response, error);
+          });*/
      }
      
      // Event handler when download link is clicked
-     downloadLinkClick() {
-          let fileName=this.state.mp3File;
+     downloadLinkClicked() {
+          const fileNameWithoutPath=this.state.downloadLink.substr(this.state.downloadLink.lastIndexOf("/")+1);
+          
+          /* Fix Me need to be re-written for React */
+          // Subscribe to DL service and wait for the done response 
+          /*this.downloads.download(this.downloadLink, fileNameWithoutPath).subscribe((response) => {
+               //console.log("Response: " + response.state);
+               if (response.state === "DONE") {
+                    if (!this.debugging) {
+                         // Send request to delete the file
+                         this.dataService.deleteDownloadFile(this.downloadLink).subscribe((response) => { 
+                              //console.log(response)
+                         },
+                         error => {
+                              console.log("An error " + error + " occurred deleting the file from the server 1");
+                         });
+                    }
+               }
+          },
+          error => {
+               console.log("An error " + error + " occurred deleting the file from the server 2");
+          });
+          */
+          /*
+          // Subscribe to DL service and wait for the done response 
+          this.downloads.download(this.downloadLink, fileNameWithoutPath).subscribe((response) => {
+               //console.log("Response: " + response.state);
+               if (response.state === "DONE") {
+                    if (!this.debugging) {
+                         // Send request to delete the file
+                         this.dataService.deleteDownloadFile(this.downloadLink).subscribe((response) => { 
+                              //console.log(response)
+                         },
+                         error => {
+                              console.log("An error " + error + " occurred deleting the file from the server 1");
+                         });
+                    }
+               }
+          },
+          error => {
+               console.log("An error " + error + " occurred deleting the file from the server 2");
+          });
 
-          if (fileName.lastIndexOf("/") !== -1) {
-               fileName=fileName.substring(fileName.lastIndexOf("/")+1);
+          this.downloadButtonVisible = false;
+
+          // Hide moveToServer button to prevent subsequent clicks
+          this.moveToServerButtonVisible = false;
+          */
+          
+     }
+
+     fetchFile(movetoServe, allowMoveToServer, debugging) {
+          /* Fix Me Later! */
+          /*
+          const fileName: string = (this.isAudioFormat() && !isNaN(parseInt(this.fields.TrackNum.Value)) ? this.fields.TrackNum.Value + " " : "" ) + (this.fields.Name.Value != "" ? this.fields.Name.Value : "Unknown");
+          
+          // Remove this step when you aren't generating an mp3
+          if (!this.isMP3Format())
+               this.stepperStepNames.splice(this.stepperStepNames.indexOf('Writing ID3 Tags'), 1);
+
+          // extra URL parameters in a Youtube link causes issues for youtube-dl
+          if (this.fields.URL.Value.includes('youtube.com')) {
+               const arr = this.fields.URL.Value.split('&');
+
+               this.fields.URL.Value = arr[0];
           }
 
-          window.location.href=fileName;
+          const params = `?DownloadFile` +
+                         `&URL=${this.fields.URL.Value}` +
+                         `&Filename=${this.rfc3986EncodeURIComponent(fileName)}` +
+                         `&Debugging=${debugging}` +
+                         '&MoveToServer=' + (movetoServer ? "true" : "false") +
+                         '&AllowMoveToServer=' + (allowMoveToServer ? "true" : "false") +
+                         (this.isAudioFormat()
+                              ? `&IsAudioFormat=true` + (this.isMP3Format() ? `&Bitrate=${this.currentFormat}` : ``) + `&AudioFormat=${this.currentFormat}`
+                              : `&IsVideoFormat=true&VideoFormat=${this.currentFormat}`);
+
+          return this.processStep(params);
+          */
      }
 
      fieldIsHidden(key) {
@@ -169,7 +431,7 @@ class You2Me extends React.Component {
           const nonMP3HideFields = Object.freeze(['TrackNum', 'Genre', 'Year']);
         
           const thisField = this.getField(key);
-
+          
           return (
                // If the fields property is set to disabled this is the de-facto determiner whether this field is enabled or disabled
                thisField !== null && thisField.Disabled)
@@ -184,10 +446,31 @@ class You2Me extends React.Component {
      }
 
      // Method called when all status have finished   
-     finished() {      
-          this.setState({isSubmitted : true});
-          this.setState({downloadLinkVisible: true});
-          this.setState({isFinished: true});
+     finished(isError = false) {      
+          this.setState({
+               debuggingCheckboxVisible: true,
+               downloadButtonVisible: (!this.state.moveToServer && !isError && this.state.currentStep <=2 ? true : false),
+               isFinished : true,
+               isSubmitted : true,
+               moveToServerButtonVisible: (!isError && this.allowMoveToServer && !this.moveToServerButtonVisible && this.currentStep <=2 ? true : false),
+          });
+
+          // Stop the REST service that gets the download status
+          /* Fix me later */
+          /*if (!this.debugging) {
+               this.downloadProgressSubscription.unsubscribe();
+
+               // Delete download progress temp db
+               this.dataService.deleteDownloadProgress().subscribe((response) => {
+               },
+               error => {
+                    this.handleError(Response, error);
+               });
+          }*/
+     }
+
+     formatChange(event) {
+          this.setState({currentFormat: event.target.value});
      }
     
      // When the text field value changes, store the value in the array
@@ -195,6 +478,27 @@ class You2Me extends React.Component {
           let fld=this.state.fieldArray;
           fld[name][2]=event.target.value;
           this.setState({fieldArray : fld });
+     }
+
+     // Get progress of youtube-dl
+     getDownloadProgress() {
+          /* Fix me later! */
+          /*if (this.debugging)
+               return;
+
+          this.downloadProgressSubscription = interval(50)
+               .subscribe(()=>{
+                    this.dataService.getDownloadProgress()
+                    .subscribe((jsonResult:Object)=>{
+                         if(jsonResult !== null && !jsonResult[1])
+                              this.downloadStatus=jsonResult[0];
+                    },
+                    error => {
+                         //show errors
+                         console.log(error)
+                    }
+               );
+          });*/
      }
 
      getField(fieldName) {
@@ -205,109 +509,68 @@ class You2Me extends React.Component {
      }
 
      // Get URL parameter
-     getParam(name) {
-          let query = window.location.search.substr(1);
-            
-          if (query==="")
-               return;
+     getURLParam(name) {
+          // If urlParams is still undefined, there are no url params
+          if (typeof this.state.urlParams === 'undefined')
+               return (name === "Debugging" ? false : null);
+          
+          // Make URL params upper case when checking so they aren't case sensitive
+          name=name.toUpperCase();
 
-          var res=query.split("&");
-   
-          if (name==='URL' && res[0]) {
-               let result=decodeURI(res[0].replace('URL=',''));
-             
-               if (typeof result !== 'undefined' && result !== "")
-                    return result;
-               else 
-                    return "";
-          } else if (name==='Title' && res[1]) {
-               let title=res[1];
-               title=title.replace('Title=','');
-               title=title.replace(' (HQ)','');
-   
-               return decodeURI(title); 
-          } else {
-               return "";
+          switch (name) {
+               case 'URL':
+                    return (typeof  this.state.urlParams[name] !== 'undefined' && this.state.urlParams[name] !== '' ? decodeURI(this.state.urlParams[name]) : null);
+               case 'ARTIST':
+                    return (typeof this.state.urlParams[name] !== 'undefined' && decodeURI(this.state.urlParams[name]) || null);
+               case 'ALBUM':
+                    return (typeof this.state.urlParams[name] !== 'undefined' && decodeURI(this.state.urlParams[name]) || null);
+               case 'FORMAT':
+                    return (typeof this.state.urlParams[name] !== 'undefined' && decodeURI(this.state.urlParams[name]) || null);
+               case 'GENRE':
+                    return (typeof this.state.urlParams[name] !== 'undefined' && decodeURI(this.state.urlParams[name]) || null);
+               case 'NAME':
+                    if (typeof this.state.urlParams[name] === 'undefined')
+                         return null;
+                    
+                    let title = this.state.urlParams[name];
+
+                    title = title.replace('Title=', '');
+                    title = title.replace(' (HQ)', '');
+                    title = title.replace(' (Acoustic / Audio) - YouTube', '');
+                    title = title.replace(' - YouTube', '');
+
+                    return decodeURI(title);
+               case 'TRACKNUM':
+                    return (typeof this.state.urlParams[name] !== 'undefined' && decodeURI(this.state.urlParams[name])  || null);
+               case 'MOVETOSERVER':
+                    return (typeof this.state.urlParams[name] !== 'undefined' ? this.state.urlParams[name] : null);
+               case 'YEAR':
+                    return (typeof this.state.urlParams[name] !== 'undefined' ? decodeURI(this.state.urlParams[name]) : null);
+               case 'DEBUGGING':
+                    return (typeof this.state.urlParams[name] !== 'undefined' && this.state.urlParams[name] === 'true' ? true : null);
+               default:
+                    return null;
           }
      }
-    
-     // handles fetch response
-     handleFetchResponse(response) {
-          if (response[0].indexOf("ERROR") !== -1) {
-               // write error status
-               this.updateStatus("A fatal error occurred: " + response[0]);
 
-               // Set submitted status            
-               this.setState({isSubmitted : true});
+     // Handle errors returned by observable
+     handleError(response, error) {
+          // write error status
+          this.updateStatus(`A fatal error occurred`  + (response[0] !== null ? `: ${response[0]}` : ``));
 
-               return;
-          }
+          console.log(`An error occurred at step ${this.currentStep} with the error ${error[0]}`);
 
-          switch (this.state.currentStep) {
-               case 1: 
-                    let mp3File = response[0];
-                    this.setState({mp3File : mp3File});
+          //if (!this.debugging)
+          //     this.downloadProgressSubscription.unsubscribe();
 
-                    /*
-                    if (response[1] !== "") {
-                         let newFieldArray={...this.state.fieldArray};
-                         newFieldArray['Artist'][2]=response[1];
-                         this.setState({fieldArray : newFieldArray});
-                    }
-
-                    if (response[2] !== "") {
-                         let newFieldArray={...this.state.fieldArray};
-                         newFieldArray['Title'][2]=response[2];
-                         this.setState({fieldArray : newFieldArray});
-                    } 
-                    */
-
-                    this.updateStatus("The file has been downloaded. Writing the ID3 tags");
-           
-                    // Update the status and continue on to the next step 
-                    this.setState({ currentStep : 2}, () => this.submitClick());
-
-                    break;
-               case 2:
-                    this.updateStatus("The ID3 tags have been written. Renaming the file");
-      
-                    // Update the status and continue on to the next step 
-                    this.setState({currentStep : 3}, () => this.submitClick());
-
-                    break;
-               case 3:
-                    // save the new file name
-                    mp3File = response;
-
-                    this.setState({mp3File : mp3File});
-
-                    // If this is the last step, finalize everything 
-                    if (stepperStepNames.length === 4) {          
-                         this.updateStatus("Please click on the download button");
-                         this.setState({currentStep : 4});
-                         this.finished();
-                    } else
-                         this.setState({currentStep : 4}, () => this.submitClick());
-               
-                    break;
-               case 4:
-                     this.updateStatus("The file has been moved to the new location");
-       
-                     this.setState({currentStep : 5});
-                     
-                     this.finished();
-
-                    break;
-               default:
-                    alert("Unknown AJAX status");
-          } 
+          this.finished(true);
      }
 
      isAudioFormat() {
           let isAudio = false;
 
           Object.keys(this.state.formats).forEach(key => {
-               if (key === this.state.currentFormat && this.props.formats[key].FormatTypeName === 'Audio')
+               if (this.state.currentFormat === this.state.formats[key].FormatName && this.state.formats[key].FormatTypeName === 'Audio')
                     isAudio = true;              
           });
 
@@ -319,11 +582,55 @@ class You2Me extends React.Component {
           let isMP3 = false;
 
           Object.keys(this.state.formats).forEach(key => {
-               if (key === this.state.currentFormat && this.props.formats[key].FormatTypeName === 'Audio' && this.props.formats[key].IsMP3Format)
+               if (this.state.currentFormat === this.state.formats[key].FormatName && this.state.formats[key].FormatTypeName === 'Audio' && this.state.formats[key].IsMP3Format == true)
                     isMP3=true; 
           });
 
           return isMP3;
+     }
+
+     moveFile(localFile, isAudio) {
+          const params = `?MoveFile` +
+                         `&MoveToServer=true`  +
+                         `&Filename=${localFile}` +
+                         `&Artist=${this.rfc3986EncodeURIComponent(this.fields.Artist.Value)}` +
+                         (isAudio
+                         ? `&IsAudioFormat=true` + (typeof this.fields.Album.Value !== 'undefined' ? `&Album=${this.rfc3986EncodeURIComponent(this.fields.Album.Value)}` : '')
+                         : `&IsVideoFormat=true`);
+
+          /* Fix me later! */
+          //return this.processStep(params);
+     }
+
+     // Move To Server Task
+     moveFileToServer() {
+          if (this.moveToServer || this.allowMoveToServer) {
+               /* Fix Me */
+               /*this.dataService.moveFile(this.fileName, this.dataService.isAudioFormat())
+               .subscribe((response) => {
+                    // Trap server side errors
+                    if (response[0].includes('Error:')) {
+                         this.handleError(response, response);
+                         return;
+                    }
+
+                    this.updateStatus('The file has been moved to the server');
+
+                    this.currentStep++;
+
+                    this.finished();
+               },
+               error => {
+                    this.handleError(Response, error);
+               });*/
+          }
+     }
+
+     // Event if the user clicks on the Move To Server button
+     moveToServerClick() {
+          // If we are able to move to server 
+          if (this.allowMoveToServer)
+               this.moveFileToServer();
      }
   
      // Parse title from URL
@@ -340,16 +647,41 @@ class You2Me extends React.Component {
           titleParam=titleParam.replace(' - YouTube','');
    
           // If no dash is in the title, I'm going to assume that the title is the song name 
-          if (titleParam.indexOf('-')===null && section==='title') {
+          if (titleParam.includes('-') && section.toUpperCase() === 'TITLE')
                return titleParam;
-          }
    
-          let res=titleParam.split('-');
+          const res=titleParam.split('-');
    
           if (section==='artist' && res[0]) {
-               return res[0].trim();
+               return decodeURI(res[0].trim());
           } else if (section==='title' && res[1]) {
-               return res[1].trim();
+               return decodeURI(res[1].trim());
+          }
+     }
+
+     processStep(params) {
+          /* Fix me later */
+          /*return this.http.get<any>('/php/serverTasks.php' + params)
+               .pipe(
+                    catchError(this.handleError)
+          );*/
+     }
+
+     processSteps() {
+          // Call data service based on the current step
+          switch (this.state.currentStep) {
+               case 0: // Download the file                    
+                    this.downloadFile();
+
+                    break;
+               case 1: // Write ID3 tags
+                    this.writeID3Tags()
+
+                    break;
+               case 2: // Call the data service to move the file to the media server
+                    this.moveFileToServer();
+
+                    break;
           }
      }
 
@@ -358,6 +690,11 @@ class You2Me extends React.Component {
                backgroundColor: 'green',
                marginLeft: '15%',
           };
+
+          const formatLabelStyle = {
+               position: 'relative',
+               top: '25px'
+          }
           
           const labelStyle = {
                display: 'inline-block',
@@ -372,16 +709,20 @@ class You2Me extends React.Component {
                maxWidth: '550px',
           };
           
-          const snackbarStyle= {
+          const snackbarStyle=  {
                maxWidth: '353px',
           };
 
-          const snackbarStyleMobile= {
+          const snackbarStyleMobile = {
                position: 'absolute',
                zIndex: '999',
                minWidth: '353px',
                top: '35%',
           };
+
+          const spacer = {
+               marginTop: '25px'
+          }
 
           const submitButtonStyle = {
                marginLeft: 'auto',
@@ -399,7 +740,7 @@ class You2Me extends React.Component {
                     <Card style={cardStyle} elevation={3}>
 	                       <AppBar position="static">
 		                          <Toolbar>
-		                               <Typography variant="title" color="inherit">
+		                               <Typography color="inherit">
 			                                  You2Me
 		                               </Typography>
 		                          </Toolbar>
@@ -409,9 +750,11 @@ class You2Me extends React.Component {
 		                          {fields}
 	                       </Grid>
 
-                            <Grid container direction="column">
-                            <InputLabel id="demo-controlled-open-select-label">Format</InputLabel>
-                                 <Select placeholder="Format" value="this.state.currentDormat">
+                            <Grid container direction="column" style={spacer}>
+                                 {(this.state.currentFormat === '' &&
+                                      <InputLabel id="demo-controlled-open-select-label" style={formatLabelStyle}>Format</InputLabel>
+                                 )}
+                                 <Select value={this.state.currentFormat} onChange={this.formatChange}>
 		                            {optionItems}
                                  </Select>
 	                       </Grid>
@@ -439,7 +782,7 @@ class You2Me extends React.Component {
                     </Card>
     
                     {(this.state.snackBarVisible === true &&
-	                       <SnackbarContent message={this.state.snackBarMessage} style={(isMobile ? snackbarStyleMobile : snackbarStyle)} />
+	                       <SnackbarContent message={this.state.statusMessage} style={(isMobile ? snackbarStyleMobile : snackbarStyle)} />
                     )}                    
                </div>
           );
@@ -465,80 +808,101 @@ class You2Me extends React.Component {
           const txtFieldStyle = {
                marginTop: '25px',
           }
-
+         
           if (!this.fieldIsHidden(i))
                return (
                     <TextField key={i} placeholder={i} label={i} onChange={this.formFieldChange(i)} required={this.state.fields[i].Required} style={txtFieldStyle} value={(this.state.fields[i].Value)} />
                )
      }
-
-     // Reset the form
-     resetForm() {
-          // Clear all of the field values
-          let fieldArray=this.state.fieldArray;
-
-          for (let key in fieldArray)
-               fieldArray[key][2]="";
-
-          this.setState({fieldArray : fieldArray});
-
-          // reset the stepper
-          this.setState({currentStep : 0});
-
-          // Set initial status message
-          this.setState({statusMessage : "Fields marked with an * are required" });
-
-          // Reset submitted status            
-          this.setState({isSubmitted : false});
-
-          this.setState({currentStep : 1 });
-
-          this.setState({isFinished: false});
-
-          this.setState({downloadLinkVisible: false});          
+     
+     // Escapes all special characters so they can safely be passed as URL parameters
+     rfc3986EncodeURIComponent(str) {  
+          return encodeURIComponent(str).replace(/[!'()*]/g, escape);  
      }
 
      // Show snackbar message
      showSnackBarMessage(message) {
-          this.setState({snackBarMessage : message});
-          this.setState({snackBarVisible : true});
-
           setTimeout(function(){
-               this.setState({snackBarVisible : false});
-          }.bind(this), 5000);
+               this.setState({
+                    snackBarVisible : true,
+                    snackBarMessage : message
+               });
+
+               setTimeout(function(){
+                    this.setState({snackBarVisible : false});
+               }.bind(this), 5000);
+          }.bind(this), 500);
+     }
+
+     // If you double click twice on the status message before submitting, it will show the checkbox to toggle the Debugging checkbox
+     // so you can enable Debugging after loading the form but before submitting it
+     statusDoubleClick() {
+          if (this.state.isSubmitted)
+               return;
+
+          this.statusCountClick++;
+
+          if (this.statusCountClick == 2) {
+               this.state.debuggingCheckboxVisible = true;
+               this.statusCountClick = 0;
+          }
      }
 
      // submit button click event 
      submitClick() {
           // When the last step has been completed, the submit button changes to restart. This will reset everything when restart is clicked
-          if (this.state.isFinished===true) {
-               this.resetForm();
+          if (this.state.isFinished) {
+               // If the Save Values checkbox is not checked
+               if (!this.saveValues)                    
+                    this.clearFieldValues(); // Clear all of the field values
+
+               this.setState({currentStep: 1});
+
+               this.setState({statusMessage: 'Fields marked with an * are required'});
+
+               this.setState({isSubmitted: false});
+
+               this.setState({isFinished: false});
+
+               this.setState({isFinished: false});
+
+               this.setState({formatOverride: false});
+
+               this.setState({downloadButtonVisible: false});
+
+               this.setState({moveToServerButtonVisible: false});
+
                return;
           }
 
-          // Validate the required fields when the status == 2
-          // if (this.state.currentStep==2) {
-          let result=this.validateFields(this.state.fieldArray);
+          // Since I use Python fingerprinting, you don't have to fill in the artist and name if an MP3 format is selected. formatOverride is set to true 
+          // if python fingerprinting cannot identify the track in which case the artist and song name ARE required
+          if (this.isMP3Format() && !this.state.formatOverride) {
+               const fields=this.state.fields;
+               fields.Artist.Required=false;
+               fields.Name.Required=false;
 
-          if (result[0]==="Error") 
+               this.setState({fields: fields});
+          }
+
+           // Validate the required fields
+           const validateResult = this.validateFields();
+
+           if (validateResult !== null) {
+               this.showSnackBarMessage(validateResult);
                return;
-
-          // Show steps
-          this.setState({isSubmitted : true});
-
-          // Build fetch parameters 
-          const params=this.buildParameters();
+          }
 
           // Set initial status
-          if (this.state.currentStep===1)
-               this.updateStatus("Starting the download");
+          if (this.state.currentStep === 0)
+               this.updateStatus('Starting the download');
 
-          // Run the AJAX request
-          fetch('./php/serverTasks.php' + params, {method: 'GET',}).then(response => response.json()).then((response) => {
-               this.handleFetchResponse(response);
-          }).catch(error => { 
-               console.log('request failed', error); 
-          });
+          this.setState({formatOverride: false});
+
+          this.setState({isSubmitted: false});
+
+          // Start the process
+          this.processSteps();
      }
 
      // Update the status message 
@@ -547,52 +911,73 @@ class You2Me extends React.Component {
      }
 
      // Validate all of the text fields
-     validateFields(fieldArray) {
-          if (fieldArray["URL"][2]==="") {
-               this.showSnackBarMessage("Please enter the URL");
-               return ["Error"];
+     validateFields() {          
+          if (this.state.fields.URL.Value === null || this.state.fields.URL.Value === "")
+               return 'Please enter the URL';
+
+          if (this.state.fields.URL.Value !== null && this.state.fields.URL.Value !== "" && !this.state.fields.URL.Value.startsWith("http://") && !this.state.fields.URL.Value.startsWith("https://"))
+               return 'Please enter a valid URL beginning with http:// or https://';
+
+          if (!this.fieldIsHidden('Artist') && (this.state.fields.Artist.Required && (this.state.fields.Artist.Value === null || this.fields.state.Artist.Value === '')))
+               return 'Please enter the artist';
+          
+          if (!this.fieldIsHidden('Album') && this.state.fields.Album.Required && (this.state.fields.Album.Value === null || this.state.fields.Album.Value === ''))
+               return 'Please enter the album';
+
+          if (this.state.fields.Name.Required && (this.state.fields.Name.Value === null || this.state.fields.Name.Value === ''))
+               return 'Please enter the name';
+
+          if (this.state.fields.TrackNum.Required && (this.state.fields.TrackNum.Value === null || this.state.fields.TrackNum.Value === ''))
+               return 'Please enter the track #';
+
+          if (this.state.fields.Year.Required && (this.state.fields.Year.Value === null || this.state.fields.Year.Value === ''))
+               return 'Please enter the year';
+
+          // Default album to Unknown if not provided
+          if (!this.fieldIsHidden('Album') && this.state.fields.Album.Value === null) {
+               const fields=this.state.fields;
+               fields.Album.Value = 'Unknown';
+               this.setState({fields: fields});
           }
 
-          if (!fieldArray["URL"][2].startsWith("http://") && !fieldArray["URL"][2].startsWith("https://")) {
-               this.showSnackBarMessage("Please enter a valid URL beginning with http:// or https://");
-               return ["Error"];
-          }
+          if (this.currentFormat === null || this.currentFormat === '')
+               return 'Please select the format';
 
-          if (fieldArray["URL"][2].indexOf("youtube.com")===-1 && fieldArray["URL"][2].indexOf("youtu.be")===-1) {
-               this.showSnackBarMessage("Only YouTube URLs are allowed");
-               return ["Error"];
-          }
+          return null;
+     }
 
-          if (fieldArray["Artist"][2]===null) {
-               this.showSnackBarMessage("Please enter the artist");
-               return ["Error"];
-          }
+     // Write ID3 tags step
+     writeID3Tags() {
+          // Call data service to write ID3 tags
+          /* Fix Me */
+          /*this.dataService.writeID3Tags(this.fileName)
+          .subscribe((response) => {
+               // Trap server side errors
+               if (response[0].includes('Error:')) {
+                    this.handleError(response, response);
+                    return;
+               }
 
-          if (fieldArray["Album"][1]===true && fieldArray["Album"][2]===null) {
-               this.showSnackBarMessage("Please enter the album");
-               return ["Error"];
-          }
+               this.updateStatus('The ID3 tags have been written. Renaming the file');
 
-          if (fieldArray["Name"][2]===null) {
-               this.showSnackBarMessage("Please enter the track name");
-               return ["Error"];
-          }
+               // Update the status and continue on to the next step
+               this.currentStep++;
 
-          if (fieldArray["Track #"][1]===true && fieldArray["Track #"][2]===null) {
-               this.showSnackBarMessage("Please enter the track #");
-               return ["Error"];
-          }
+               // If MoveToServer is NOT enabled, this is the last step
+               if (!this.moveToServer) {
+                    // The response returns the URL for the downloaded file
+                    this.downloadLink = decodeURIComponent(response[0].replace(/\+/g, ' '));
 
-          /*if (fieldArray["Genre"][2]==="") {
-               return ["Error","Please enter the genre"];
-          }*/
+                    this.finished();
 
-          if (fieldArray["Year"][1]===true && fieldArray["Year"][2]===null) {
-               this.showSnackBarMessage("Please enter the year");
-               return ["Error"];
-          }
-
-          return ["OK",""];
+                    return;
+               } else { // Move To Server is enabled so process next step
+                    this.processSteps();
+               }
+          },
+          error => {
+               this.handleError(Response, error);
+          });*/
      }
 }
 

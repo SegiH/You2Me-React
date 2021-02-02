@@ -1,36 +1,36 @@
 /*
 TO DO
+    Move to server renders with this if: {( (this.state.allowMoveToServer && this.state.moveToServerButtonVisible && this.state.isSubmitted) See if you ca remove this.state.moveToServerButtonVisible or this.state.isSubmitted
     https://github.com/facebook/create-react-app/blob/master/packages/react-scripts/template/README.md#adding-assets-outside-of-the-module-system
 
-    React Service: https://medium.com/the-guild/injectable-services-in-react-de0136b6d476
+    React Service: https://pusher.com/tutorials/consume-restful-api-react
 */
 
 import React from 'react';
 
 import AppBar from '@material-ui/core/AppBar';
 import Button from '@material-ui/core/Button';
-import Grid from "@material-ui/core/Grid";
 import Card from '@material-ui/core/Card';
+import Checkbox from '@material-ui/core/Checkbox'
+import CloseIcon from '@material-ui/icons/Close';
+import FormControlLabel from '@material-ui/core/FormControlLabel';
+import FormGroup from '@material-ui/core/FormGroup';
+import Grid from "@material-ui/core/Grid";
+import IconButton from "@material-ui/core/IconButton";
+import InputLabel from "@material-ui/core/InputLabel";
+import MenuItem from "@material-ui/core/MenuItem";
+import Select from "@material-ui/core/Select";
+import Snackbar from "@material-ui/core/Snackbar";
 import Step from '@material-ui/core/Step';
 import StepLabel from '@material-ui/core/StepLabel';
 import Stepper from '@material-ui/core/Stepper';
-import { InputLabel, MenuItem, Select, TextField } from '@material-ui/core';
+import TextField from '@material-ui/core/TextField';
 import Toolbar from '@material-ui/core/Toolbar';
 import Typography from '@material-ui/core/Typography';
-import SnackbarContent from '@material-ui/core/SnackbarContent';
 
 const MobileDetect = require('mobile-detect');
 const md = new MobileDetect(window.navigator.userAgent);
 const isMobile=md.mobile();
-
-const moveToServer = false;
-
-const stepperStepNames = [
-     'Started download',
-     'Finished download',
-     'Writing ID3 Tags',
-     'Renaming the file',
-];
 
 // Form component 
 class You2Me extends React.Component {
@@ -112,12 +112,17 @@ class You2Me extends React.Component {
                isSubmitted : false, 
                moveToServer : false,
                moveToServerButtonVisible : false, // default false
-               saveValues : false,    
+               saveValues : false,
+               supportedURLsVisible : false,
                statusCountClick : 0,
-               //snackBarVisible : false,
                statusMessage : "",
                statusCountClick : 0,
                statusMessage : "Fields marked with an * are required",
+               stepperStepNames : [
+                    'Started download',
+                    'Finished download',
+                    'Writing ID3 Tags',
+               ],
                urlParams: {},
                validURLParameters : ['URL','Artist','Album','Format','Genre','Name','TrackNum','MoveToServer','Year','Debugging']
           };
@@ -131,13 +136,7 @@ class You2Me extends React.Component {
           this.submitClick = this.submitClick.bind(this);
           this.updateStatus = this.updateStatus.bind(this);
 
-          // DELETE LATER!
-          //this.state.fieldArray["URL"][2]="https://www.youtube.com/watch?v=Wch3gJG2GJ4";
-          //this.state.fieldArray["Artist"][2]="a";
-          //this.state.fieldArray["Name"][2]="a";
-     
-          //this.parseURLParameters();
-
+          // Load url parameters
           const query = window.location.search.substr(1);
 
           if (query === '')
@@ -161,10 +160,19 @@ class You2Me extends React.Component {
           const format = this.getURLParam('Format');
 
           // Set the current format without validating it first because formats object may not be populated yet
-          if (format !== null)
-               this.state.currentFormat = format;
-          else
-               this.showSnackBarMessage(`The format provided is not valid`);
+          if (format !== null) {
+               let validFormat=false;
+
+               Object.keys(this.state.formats).forEach(key => {
+                    if (this.state.formats[key].FormatName == format)
+                         validFormat=true;
+               });
+
+               if (!validFormat) 
+                    this.showSnackBarMessage(`The format provided is not valid`);
+               else
+                    this.state.currentFormat = format;
+          }
                
           // If URL parameter MoveToServer was provided and is allowed, add Moving the file to new location as a step
           if (this.getURLParam('MoveToServer') === 'true' && this.state.allowMoveToServer) {
@@ -175,8 +183,8 @@ class You2Me extends React.Component {
                document.title = 'You2Me';
           }
                
-          if (moveToServer === true)
-              stepperStepNames.push('Moving the file to new location');
+          if (this.state.moveToServer === true)
+              this.state.stepperStepNames.push('Moving the file to new location');
           
           // Save current debugging value
           const currDebugging=this.state.debugging;
@@ -229,8 +237,8 @@ class You2Me extends React.Component {
                if (split_params[i] !== '') {
                     const param=split_params[i].split("=")[0]; // URL is in the form Name=Value; Get Name part of the parameter
 
-                    if (!this.state.validURLParameters.includes(param))
-                         this.showSnackBarMessage('The URL parameter ' + param + ' is not a valid URL parameter');                    
+                    //if (!this.state.validURLParameters.includes(param))
+                    //     this.showSnackBarMessage('The URL parameter ' + param + ' is not a valid URL parameter');                    
                }
           }
      }
@@ -248,11 +256,145 @@ class You2Me extends React.Component {
      // Download file step
      downloadFile() {
           // Start timer that gets download progress
-          if (!this.debugging)
-               this.getDownloadProgress();
+          
+          /* FIX ME LATER! */
+          //if (!this.debugging)
+          //     this.getDownloadProgress();
+
+          const fileName = (this.isAudioFormat() && !isNaN(parseInt(this.state.fields.TrackNum.Value)) ? this.state.fields.TrackNum.Value + " " : "" ) + (this.state.fields.Name.Value != "" ? this.state.fields.Name.Value : "Unknown");
+                    
+          // Remove this step when you aren't generating an mp3
+          if (!this.isMP3Format()) {
+               let stepperStepNames=this.state.stepperStepNames;
+
+               stepperStepNames.splice(stepperStepNames.indexOf('Writing ID3 Tags'), 1);
+
+               this.setState({stepperStepNames: stepperStepNames});
+          }
+
+          // extra URL parameters in a Youtube link causes issues for youtube-dl
+          if (this.fields.URL.Value.includes('youtube.com')) {
+               const arr = this.fields.URL.Value.split('&');
+               const fields = this.state.fields;
+
+               fields.URL.Value = arr[0];
+
+               this.setState({fields : fields});
+          }
+
+          const params = `?DownloadFile` +
+                         `&URL=${this.state.fields.URL.Value}` +
+                         `&Filename=${this.rfc3986EncodeURIComponent(fileName)}` +
+                         `&Debugging=${this.state.debugging}` +
+                         '&MoveToServer=' + (this.state.movetoServer ? "true" : "false") +
+                         '&AllowMoveToServer=' + (this.state.allowMoveToServer ? "true" : "false") +
+                         (this.isAudioFormat()
+                              ? `&IsAudioFormat=true` + (this.isMP3Format() ? `&Bitrate=${this.state.currentFormat}` : ``) + `&AudioFormat=${this.state.currentFormat}`
+                              : `&IsVideoFormat=true&VideoFormat=${this.state.currentFormat}`);
 
           // Call data service to download the file
-          /* FIX ME LATER! */
+	     fetch('./php/serverTasks.php' + params, {method: 'GET',}).then(response => response.json()).then((response) => {
+               if (response[0].indexOf("ERROR") !== -1) {
+                    // write error status
+                    this.updateStatus("A fatal error occurred: " + response[0]);
+               }
+
+               // Stop the REST service that gets the download status
+               if (!this.debugging) {
+                    /* Fix me */
+                    //this.downloadProgressSubscription.unsubscribe();
+
+                    this.setState({downloadStatusVisible :false});
+
+                    // Call REST service to delete download progress temp db
+                    /* Fix me */
+                    /*this.dataService.deleteDownloadProgress().subscribe((response) => {
+                    },
+                    error => {
+                         this.handleError(Response, error);
+                    });*/
+               }
+
+               // Trap server side errors
+               if (response[0].includes('Error:')) {
+                    this.handleError(response, response);
+                    console.log(response[1]);
+                    return;
+               }
+
+               // First index will be filename
+               this.setState({fileName : response[0]});
+
+               // Second index will be Artist if matched through Python script that does audio fingerprinting
+               const fields = this.state.fields;
+
+               if (typeof response[1] !== 'undefined')
+                    fields.Artist.Value=response[1];
+
+               // Third index will be Title if matched through Python script that does audio fingerprinting
+               if (typeof response[2] !== 'undefined')
+                    fields.Name.Value=response[1];
+               
+               this.setState({fields : fields});
+
+               // If the selected format is MP3 format and the Python script tried but fails to get the artist and album
+               // Make artist and name fields required
+               if (this.isMP3Format()) {
+                    if (this.state.fields.Artist.Value === "") {
+                         const fields = this.state.fields;
+                         fields.Artist.Required.true;
+                         this.setState({fields : fields});
+
+                         this.showSnackBarMessage('Please enter the artist');
+                         
+                         this.setState({
+                              currentStep : 1,
+                              formatOverride : true,
+                              isSubmitted : false,
+                         });
+                         
+                         if (fields.Name.Value !== "")
+                              return;
+                    }
+
+                    if (fields.Name.Value === "") {
+                         const fields = this.state.fields;
+                         fields.Name.Required.true;
+
+                         this.showSnackBarMessage('Please enter the name');
+                         
+                         this.setState({
+                              currentStep : 1,
+                              fields : fields,
+                              formatOverride : true,
+                              isSubmitted : false,
+                         });
+
+                         return;
+                    }
+
+                    this.updateStatus('The file has been downloaded. Writing the ID3 tags');
+
+                    const nextStep=this.state.currentStep+1;
+                    this.setState({currentStep : nextStep});
+
+                    this.processSteps();
+               } else if (!this.isMP3Format() && !this.state.moveToServer) { // If the format is not MP3 and we aren't moving to the server we are done
+                    // The response returns the URL for the downloaded file
+                    this.setState({downloadLink : decodeURIComponent(response[0].replace(/\+/g, ' '))});
+
+                    this.updateStatus('The file is ready for you to download or move to your server');
+
+                    this.finished();
+
+                    return;
+               }
+
+               this.setState({fields : fields});
+          }).catch(error => { 
+               console.log('request failed', error); 
+          });
+          
           /*this.dataService.fetchFile(this.moveToServer, this.allowMoveToServer, this.debugging)
           .subscribe((response) => {
                // Stop the REST service that gets the download status
@@ -475,9 +617,9 @@ class You2Me extends React.Component {
     
      // When the text field value changes, store the value in the array
      formFieldChange = name => event => {
-          let fld=this.state.fieldArray;
-          fld[name][2]=event.target.value;
-          this.setState({fieldArray : fld });
+          const fields=this.state.fields;
+          fields[name].Value=event.target.value;
+          this.setState({fields : fields});
      }
 
      // Get progress of youtube-dl
@@ -560,11 +702,16 @@ class You2Me extends React.Component {
 
           console.log(`An error occurred at step ${this.currentStep} with the error ${error[0]}`);
 
+          /* Fix me later */
           //if (!this.debugging)
           //     this.downloadProgressSubscription.unsubscribe();
 
           this.finished(true);
      }
+
+     handleSaveValuesChange = (event) => {
+          this.setState({saveValues: event.target.checked});
+     };
 
      isAudioFormat() {
           let isAudio = false;
@@ -638,9 +785,8 @@ class You2Me extends React.Component {
           // section can be artist name or song name
           let titleParam=this.getParam("Title");
             
-          if (!titleParam) {
+          if (!titleParam)
                return null;
-          }
    
           // Remove these strings from the URL 
           titleParam=titleParam.toString().replace(' - [HQ] - YouTube','');
@@ -652,20 +798,23 @@ class You2Me extends React.Component {
    
           const res=titleParam.split('-');
    
-          if (section==='artist' && res[0]) {
+          if (section==='artist' && res[0])
                return decodeURI(res[0].trim());
-          } else if (section==='title' && res[1]) {
+          else if (section==='title' && res[1])
                return decodeURI(res[1].trim());
-          }
      }
 
-     processStep(params) {
-          /* Fix me later */
-          /*return this.http.get<any>('/php/serverTasks.php' + params)
-               .pipe(
-                    catchError(this.handleError)
-          );*/
-     }
+     /*processStep(params) {
+          // Run the AJAX request
+	     fetch('./php/serverTasks.php' + params, {method: 'GET',}).then(response => response.json()).then((response) => {
+               if (response[0].indexOf("ERROR") !== -1) {
+                    // write error status
+                    this.updateStatus("A fatal error occurred: " + response[0]);
+               }
+          }).catch(error => { 
+               console.log('request failed', error); 
+          });
+     }*/
 
      processSteps() {
           // Call data service based on the current step
@@ -686,9 +835,31 @@ class You2Me extends React.Component {
      }
 
      render() {
+          const cardStyle = {
+               borderStyle: 'solid',
+               borderWidth: '1px',
+               marginLeft: '15px',
+               width: '600px',
+          };
+
+          const divStyle = {
+               borderStyle: 'solid',
+               borderWidth: '1px',
+               
+               maxWidth: '550px',
+               marginLeft: '15px',
+               marginTop: '15px',
+          }
+
+          const supportedSitesStyle = {
+               borderStyle: 'solid',
+               borderWidth: '1px',
+               maxWidth: '550px',
+          }
+
           const downloadButtonStyle = {
                backgroundColor: 'green',
-               marginLeft: '15%',
+               color: 'white',
           };
 
           const formatLabelStyle = {
@@ -701,17 +872,10 @@ class You2Me extends React.Component {
                width: '100%',
           };
            
-          const cardStyle = {
-               borderStyle: 'solid',
-               borderWidth: '1px',
-               marginLeft: '15px',
-               marginTop: '15px',
-               maxWidth: '550px',
-          };
-          
-          const snackbarStyle=  {
-               maxWidth: '353px',
-          };
+          const movetoServerStyle = {
+               backgroundcolor: 'red',
+               color: 'white',
+          }
 
           const snackbarStyleMobile = {
                position: 'absolute',
@@ -727,63 +891,123 @@ class You2Me extends React.Component {
           const submitButtonStyle = {
                marginLeft: 'auto',
                marginRight: 'auto',
+               marginBottom: '25px',
+               marginTop: '25px',
+          };
+
+          const handleClose = (event, reason) => {
+               if (reason === 'clickaway') {
+                 return;
+               }
+           
+               this.setState({snackBarVisible : false});
           };
           
-          const buttonText=(!this.state.isSubmitted ? "Start" : "Restart");
-          const dlLink = (this.state.downloadLinkVisible && stepperStepNames.length === 4 ? <Button color="secondary" onClick={this.downloadLinkClick} style={downloadButtonStyle} variant="contained">Download</Button> : <div />);  
           const fields = Object.keys(this.state.fields).map(key => this.renderTextFields(key));
-          const stepperSteps = Object.keys(stepperStepNames).map(key => this.renderSteps(key));
+          const stepperSteps = Object.keys(this.state.stepperStepNames).map(key => this.renderSteps(key));
           const optionItems=Object.keys(this.state.formats).map(key => this.renderFormatOptions(key));
     
           return (
                <div>
-                    <Card style={cardStyle} elevation={3}>
-	                       <AppBar position="static">
-		                          <Toolbar>
-		                               <Typography color="inherit">
-			                                  You2Me
-		                               </Typography>
-		                          </Toolbar>
-	                       </AppBar>
+               <div style={divStyle}>
+	                    <AppBar position="static">
+		                    <Toolbar>
+		                         <Typography color="inherit">
+			                         You2Me {(this.state.moveToServer && " (Server)")} {(this.state.debugging && " (Debugging enabled)")}
+		                         </Typography>
+		                    </Toolbar>
+	                    </AppBar>
 
-	                       <Grid container direction="column">
-		                          {fields}
-	                       </Grid>
+                         {/* Fields */}
+	                    <Grid container direction="column">
+		                    {fields}
+	                    </Grid>
 
-                            <Grid container direction="column" style={spacer}>
-                                 {(this.state.currentFormat === '' &&
-                                      <InputLabel id="demo-controlled-open-select-label" style={formatLabelStyle}>Format</InputLabel>
-                                 )}
-                                 <Select value={this.state.currentFormat} onChange={this.formatChange}>
-		                            {optionItems}
-                                 </Select>
-	                       </Grid>
+                         {/* Format dropdown */}
+                         <Grid container direction="column" style={spacer}>
+                              {(this.state.currentFormat === '' &&
+                                   <InputLabel id="demo-controlled-open-select-label" style={formatLabelStyle}>Format</InputLabel>
+                              )}
+                              <Select value={this.state.currentFormat} onChange={this.formatChange}>
+		                         {optionItems}
+                              </Select>
+	                    </Grid>
 
-	                       <h2>
-                              <div style={labelStyle}>
+                         {/* Snackbar alert */}
+	                    <Snackbar
+                              anchorOrigin={{
+                                   vertical: 'bottom',
+                                   horizontal: 'left',
+                              }}
+                              open={this.state.snackBarVisible}
+                              autoHideDuration={6000}
+                              message={this.state.snackBarMessage}
+                              action={
+                                   <React.Fragment>
+                                        <Button color="secondary" size="small" onClick={handleClose}>
+                                             UNDO
+                                        </Button>
+                                        <IconButton size="small" aria-label="close" color="inherit" onClick={handleClose}>
+                                             <CloseIcon fontSize="small" />
+                                        </IconButton>
+                                   </React.Fragment>
+                              }
+                         />
+
+                         <h2>
+                              <div style={labelStyle} onDoubleClick = {this.statusDoubleClick()}>
                                    {this.state.statusMessage}
                               </div>
-	                       </h2>
+	                    </h2>
+
+                         {/* Stepper */}
+                         {(this.state.isSubmitted &&
+	                         <Stepper activeStep={this.state.currentStep} orientation="vertical">
+	                              {stepperSteps}
+	                         </Stepper>                               
+                         )}
+
+                         {/* Download status messages */}
+                         {(this.state.isSubmitted && this.state.currentStep == 0 && this.state.downloadButtonVisible && 
+                              <div>{{downloadStatus}}</div>
+                         )}
+
+                         {/* Save values checkbox */}
+                         {(this.state.isFinished &&
+                              <FormGroup row>
+                                   <FormControlLabel
+                                        control={<Checkbox checked={this.state.saveValues} onChange={this.handleSaveValuesChange}>Save Values</Checkbox>}
+                                        label="Save Values"
+                                   />
+                              </FormGroup>
+                         )}
                      
                          <Grid container direction="row" justify="space-between">
+                              {/* Submit/Restart button */}
                               {( (!this.state.isSubmitted || this.state.isFinished) &&
-                                   <Button color="primary" onClick={this.submitClick} style={submitButtonStyle} variant="contained">{buttonText}</Button>
+                                   <Button color="primary" onClick={this.submitClick} style={submitButtonStyle} variant="contained">{(!this.state.isSubmitted ? "Start" : "Restart")}</Button>
                               )}
-                              
-                              {dlLink}
 
-                         </Grid>
-                          
-                         {(this.state.isSubmitted === true &&
-	                            <Stepper activeStep={this.state.currentStep} orientation="vertical">
-	                                 {stepperSteps}
-	                            </Stepper>                               
-                         )}
-                    </Card>
-    
-                    {(this.state.snackBarVisible === true &&
-	                       <SnackbarContent message={this.state.statusMessage} style={(isMobile ? snackbarStyleMobile : snackbarStyle)} />
-                    )}                    
+                              {/* Download button */}
+                              {( (this.state.downloadButtonVisible) &&
+                                   <Button color="primary" onClick={this.downloadLinkClicked} style={downloadButtonStyle} variant="contained">Download</Button>
+                              )}
+
+                              {/* Move To Server button */}
+                              {( (this.state.allowMoveToServer && this.state.moveToServerButtonVisible && this.state.isSubmitted) &&
+                                   <Button color="primary" onClick={this.moveToServerClick} style={movetoServerStyle} variant="contained">Download</Button>
+                              )}                                                       
+                         </Grid>             
+               </div>
+               <div style={supportedSitesStyle} elevation={3}>
+                         <FormGroup row>
+                              <FormControlLabel
+                                   control={<Checkbox checked={this.state.saveValues} onChange={this.handleSaveValuesChange}>Save Values</Checkbox>}
+                                   label="Show Supported Sites"
+                              />
+                         </FormGroup>
+                         {/*<Checkbox checked={this.state.supportedURLsVisible}>Show supported sites</Checkbox>*/}
+                    </div>    
                </div>
           );
      }
@@ -798,7 +1022,7 @@ class You2Me extends React.Component {
      renderSteps(i) {
           return (
                <Step key={i} >
-                    <StepLabel>{stepperStepNames[i]}</StepLabel>
+                    <StepLabel>{this.state.stepperStepNames[i]}</StepLabel>
                </Step>
           );
      }     
@@ -822,7 +1046,7 @@ class You2Me extends React.Component {
 
      // Show snackbar message
      showSnackBarMessage(message) {
-          setTimeout(function(){
+          setTimeout(function() {
                this.setState({
                     snackBarVisible : true,
                     snackBarMessage : message
@@ -843,8 +1067,8 @@ class You2Me extends React.Component {
           this.statusCountClick++;
 
           if (this.statusCountClick == 2) {
-               this.state.debuggingCheckboxVisible = true;
-               this.statusCountClick = 0;
+               this.setState({debuggingCheckboxVisible: false});
+               this.setState({statusCountClick: 0});
           }
      }
 

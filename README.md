@@ -2,6 +2,9 @@
 
 You2Me is an React based web application that acts as a front-end for [youtube-dl](https://rg3.github.io/youtube-dl/) which lets you download audio or video from many web sites. 
 
+
+NOTE!! IF YOU SEE THIS MESSAGE, PLEASE DO NOT CLONE THIS REPO YET AS IT IS STILL A WORK IN PROGRESS. PLEASE CLONE MY OTHER You2Me REPO.
+
 The app can be set up so that the media file can either be downloaded or the file can be moved to a location that you specify on your media server if you have one. 
 
 When you are generating an mp3 files, Python fingerprinting is used to automatically identify the artist and the song name which means that if you enter a URL for a popular song and select an MP3 format without entering any other information, this application will fill in the artist name and song name for you automatically.
